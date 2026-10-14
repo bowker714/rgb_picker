@@ -21,27 +21,21 @@ def adjust_slider(slider, step=1):
     slider.set(new_value)
     update_color()
 
-def key_press(event):
-    # Determine which slider is focused and adjust accordingly
-    if event.keysym in ["Up", "Down"]:
-        step = 1 if event.keysym == "Up" else -1
-        if focused_slider.get() == red_slider.get():
-            adjust_slider(red_slider, step)
-        elif focused_slider.get() == green_slider.get():
-            adjust_slider(green_slider, step)
-        elif focused_slider.get() == blue_slider.get():
-            adjust_slider(blue_slider, step)
-
-def key_press_shift(event):
-    # Handle Shift + Up/Down for larger adjustments
-    if event.keysym in ["Up", "Down"]:
-        step = 10 if event.keysym == "Up" else -10
-        if focused_slider.get() == red_slider.get():
-            adjust_slider(red_slider, step)
-        elif focused_slider.get() == green_slider.get():
-            adjust_slider(green_slider, step)
-        elif focused_slider.get() == blue_slider.get():
-            adjust_slider(blue_slider, step)
+def on_key(event):
+    # Handle Up/Down and Shift+Up/Down for focused slider
+    if event.keysym not in ("Up", "Down"):
+        return
+    step = 1 if event.keysym == "Up" else -1
+    # Detect Shift modifier (platform bitmask may vary; 0x1 is commonly Shift)
+    try:
+        if event.state & 0x1:
+            step *= 10
+    except Exception:
+        pass
+    # Ensure a slider widget is focused
+    if not focused_slider:
+        return
+    adjust_slider(focused_slider, step)
 
 # Main window setup
 window = Tk()
@@ -67,31 +61,38 @@ green_slider.pack(fill=X, padx=20, pady=5)
 blue_slider = Scale(window, from_=0, to=255, orient=HORIZONTAL, label="Blue", font=("Arial", 10), fg="#F0F0F0", bg="#2E2E2E", troughcolor="#4C4CFF", command=lambda x: update_color())
 blue_slider.pack(fill=X, padx=20, pady=5)
 
-# Focused slider variable
-focused_slider = red_slider  # Start with red slider focused
+# Focused slider variable (stores the widget, not its value)
+focused_slider = None
 
 # Bind slider focus and key events
 for slider in [red_slider, green_slider, blue_slider]:
     slider.bind("<FocusIn>", lambda event, s=slider: set_focused_slider(s))
     slider.bind("<FocusOut>", lambda event: clear_focused_slider())
-    slider.bind("<Key>", key_press)
-    slider.bind("<Shift-Key>", key_press_shift)
+    slider.bind("<Key>", on_key)
+
 
 def set_focused_slider(slider):
     global focused_slider
     focused_slider = slider
+
 
 def clear_focused_slider():
     global focused_slider
     focused_slider = None
 
 # Entry widget to display and copy the hex color code
-color_entry = Entry(window, font=("Arial", 12), width=15, justify='center', fg="#333333")
+color_entry = Entry(window, font=("Arial", 12), width=15, justify='center', fg="#000000")
 color_entry.pack(pady=20)
 color_entry.insert(0, "#FFFFFF")
 
 # Button to close the app
 close_button = Button(window, text="Close", font=("Arial", 12), bg="#333333", fg="#FFFFFF", command=window.quit, padx=10, pady=5)
 close_button.pack(pady=10)
+
+# Give initial focus to the red slider so keyboard works immediately
+red_slider.focus_set()
+set_focused_slider(red_slider)
+# Ensure preview and entry match initial values
+update_color()
 
 window.mainloop()
